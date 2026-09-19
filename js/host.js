@@ -426,10 +426,14 @@
     drawPenaltyQuestion(preferredCategory);
   }
 
+  // Finał (rzuty karne, 1v1) losuje wyłącznie trudne pytania — z fallbackiem
+  // na łatwiejsze, gdyby bank nie miał już żadnych trudnych do wzięcia.
   function drawPenaltyQuestion(category) {
     if (state.phase !== 'penalty' || penaltyQuestion) return;
-    var q = bank.draw({ category: category || null });
-    if (!q && category) q = bank.draw({ category: null });
+    var q = bank.draw({ category: category || null, difficulty: 'h' });
+    if (!q && category) q = bank.draw({ category: null, difficulty: 'h' }); // fallback: kategoria wyczerpana → dowolna trudna
+    if (!q) q = bank.draw({ category: category || null }); // fallback: brak trudnych → dowolna trudność w tej kategorii
+    if (!q) q = bank.draw({ category: null }); // ostateczny fallback: cokolwiek jest w banku
     if (!q) { pushLog('⚠️ Brak dostępnych pytań w banku!'); broadcastState(); return; }
     penaltyQuestion = q;
     renderAll();
@@ -857,7 +861,9 @@
     var ids = state.finalists, a = ids[0], b = ids[1];
     var shooter = playerById(p.currentShooterId);
     return (
-      '<div class="stage-top"><div class="stage-timer">🥅 Rzuty karne — kolejka ' + shooter.nickname + '</div></div>' +
+      '<div class="stage-top"><div class="stage-timer">🥅 Rzuty karne — kolejka ' + shooter.nickname +
+        ' <span class="hard-round-pill" title="Finał losuje tylko trudne pytania">🔥 same trudne</span>' +
+      '</div></div>' +
       '<div class="penalty-score">' +
         penaltyScoreCard(a, p) + '<div class="vs">:</div>' + penaltyScoreCard(b, p) +
       '</div>' +

@@ -2041,6 +2041,7 @@
       if (opts.type && q.type !== opts.type) return false;
       if (!opts.type && q.type === 'estimate') return false; // don't draw estimate qs into normal rounds
       if (opts.category && q.category !== opts.category) return false;
+      if (opts.difficulty && (q.difficulty || 'm') !== opts.difficulty) return false;
       if (opts.excludeIds && opts.excludeIds.indexOf(q.id) !== -1) return false;
       return true;
     });

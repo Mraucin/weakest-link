@@ -484,7 +484,7 @@
       case 'penalty':
       case 'penaltyResult':
         timerEl.textContent = '';
-        catEl.textContent = '🥅 Rzuty karne';
+        catEl.textContent = '🥅 Rzuty karne · 🔥 same trudne pytania';
         setBankVisible(false);
         renderPenaltyOverlay(st);
         break;
