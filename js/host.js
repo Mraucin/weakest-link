@@ -241,7 +241,8 @@
   }
 
   function rerollQuestion() {
-    if (state.phase !== 'question') return;
+    if (state.phase !== 'question' || !currentQuestion) return;
+    bank.markUsed(currentQuestion.id); // host explicitly skipped it — archive it
     currentQuestion = null;
     drawQuestion(preferredCategory);
   }
@@ -250,8 +251,7 @@
     if (state.phase !== 'question') return;
     var q = bank.all().find(function (x) { return x.id === id; });
     if (!q) return;
-    bank.markUsed(id);
-    currentQuestion = q;
+    currentQuestion = q; // archived once graded/skipped, same as an auto-drawn question
     state.category = q.category;
     openBankWindow(state.currentPlayerId);
   }
@@ -271,6 +271,7 @@
 
   function gradeAnswer(correct) {
     if (state.phase !== 'question' || !currentQuestion) return;
+    bank.markUsed(currentQuestion.id); // graded (poprawnie/niepoprawnie) — archive it
     state.bankWindow.active = false;
     var player = playerById(state.currentPlayerId);
     if (!player) return;
@@ -439,8 +440,16 @@
     renderAll();
   }
 
+  function rerollPenaltyQuestion() {
+    if (state.phase !== 'penalty' || !penaltyQuestion) return;
+    bank.markUsed(penaltyQuestion.id); // host explicitly skipped it — archive it
+    penaltyQuestion = null;
+    drawPenaltyQuestion(preferredCategory);
+  }
+
   function gradePenalty(correct) {
     if (state.phase !== 'penalty' || !penaltyQuestion) return;
+    bank.markUsed(penaltyQuestion.id); // graded (gol/brak) — archive it
     var p = state.penalty;
     var pid = p.currentShooterId;
     var player = playerById(pid);
@@ -494,6 +503,7 @@
   }
 
   function resolveTiebreak(guessesObj) {
+    bank.markUsed(tiebreakQuestion.id); // everyone answered — archive it (covers the tie-and-redraw path too)
     var ids = state.finalists;
     var target = tiebreakQuestion.numericAnswer;
     var diffs = ids.map(function (id) {
@@ -983,7 +993,7 @@
           case 'proceedAfterAnnounce': proceedAfterAnnounce(); break;
           case 'proceedAfterTestRound': proceedAfterTestRound(); break;
           case 'beginPenaltyKicks': beginPenaltyKicks(); break;
-          case 'rerollPenaltyQuestion': penaltyQuestion = null; drawPenaltyQuestion(preferredCategory); break;
+          case 'rerollPenaltyQuestion': rerollPenaltyQuestion(); break;
           case 'gradePenalty': gradePenalty(val === '1'); break;
           case 'skipToTiebreakReveal':
             state.tiebreak.active = false; state.phase = 'tiebreakReveal'; broadcastState();
@@ -1020,7 +1030,7 @@
       else { gradeAnswer(key === 'a'); }
       e.preventDefault();
     } else if (state.phase === 'penalty' && penaltyQuestion) {
-      if (key === 's') { penaltyQuestion = null; drawPenaltyQuestion(preferredCategory); }
+      if (key === 's') { rerollPenaltyQuestion(); }
       else { gradePenalty(key === 'a'); }
       e.preventDefault();
     }

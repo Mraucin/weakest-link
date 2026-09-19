@@ -2058,11 +2058,15 @@
   //      shuffle (Fisher–Yates), not just "uniform pick, but recomputed
   //      from scratch every single draw".
   //
-  // Drawn questions are still flagged `used` ("Zarchiwizowane" in the
-  // editor) exactly as before — a persisted flag on the question itself
-  // rather than a session-only set, so it survives reloads and the host
-  // can see at a glance what's already been asked, and "Przywróć pytania"
-  // still resets it for a new game.
+  // IMPORTANT: draw() itself no longer flags the question `used`. It only
+  // hands one out — the caller (host.js) marks it "Zarchiwizowane" via
+  // markUsed() once it's actually been acted on (poprawnie / niepoprawnie /
+  // nowe pytanie). That way a question that was merely shown but never
+  // graded (host rerolled it away, or the round timer ran out before it
+  // was answered) isn't burned from the pool for nothing — only ones that
+  // genuinely got used in the game are. The flag itself is still a
+  // persisted field on the question (survives reloads; "Przywróć pytania"
+  // in the editor resets it for a new game) rather than a session set.
   // ------------------------------------------------------------------
   QuestionBank.prototype._matchesDraw = function (q, opts) {
     if (opts.type && q.type !== opts.type) return false;
@@ -2097,9 +2101,7 @@
         return self._matchesDraw(q, opts) && opts.excludeIds.indexOf(q.id) === -1;
       });
       if (pool.length === 0) return null;
-      var picked = pool[Math.floor(Math.random() * pool.length)];
-      this.markUsed(picked.id);
-      return picked;
+      return pool[Math.floor(Math.random() * pool.length)];
     }
 
     if (!opts.category) {
@@ -2126,7 +2128,6 @@
     var id = deck.pop();
     var q = this.items.find(function (x) { return x.id === id; });
     if (!q) return this.draw(opts); // id no longer exists (deleted mid-game) — draw again
-    this.markUsed(q.id);
     return q;
   };
 
