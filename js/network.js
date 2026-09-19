@@ -11,6 +11,24 @@
 
   function peerIdForRoom(code) { return WL.ROOM_PREFIX + code.toUpperCase(); }
 
+  // STUN alone only gets two browsers talking directly when their NATs are
+  // "easy" (most home routers). It regularly fails once host and player are
+  // on different networks — different WiFi, mobile data, a hotel/campus
+  // network, a stricter (symmetric) NAT — which is exactly the "limit czasu"
+  // timeout players hit even with a correct room code. A TURN server relays
+  // the traffic instead of trying a direct P2P link, as a fallback when
+  // direct connection fails. These are the Open Relay Project's public
+  // free-tier TURN credentials (openrelay.metered.ca) — safe to ship
+  // client-side, meant for exactly this kind of small/hobby use.
+  var ICE_SERVERS = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:global.stun.twilio.com:3478' },
+    { urls: 'stun:openrelay.metered.ca:80' },
+    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+  ];
+
   // ------------------------------------------------------------------
   // HostNetwork — runs on the host device. Owns the PeerJS "server" peer
   // and a connection per player.
@@ -36,12 +54,7 @@
       function tryCreate(code, attemptsLeft) {
         var peer = new Peer(peerIdForRoom(code), {
           debug: 1,
-          config: {
-            iceServers: [
-              { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:global.stun.twilio.com:3478' }
-            ]
-          }
+          config: { iceServers: ICE_SERVERS }
         });
         var settled = false;
         peer.on('open', function () {
@@ -130,17 +143,12 @@
     return new Promise(function (resolve, reject) {
       var peer = new Peer(undefined, {
         debug: 1,
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:global.stun.twilio.com:3478' }
-          ]
-        }
+        config: { iceServers: ICE_SERVERS }
       });
       var settled = false;
       var timeout = setTimeout(function () {
-        if (!settled) { settled = true; reject(new Error('Nie udało się połączyć z pokojem (limit czasu). Sprawdź kod pokoju.')); }
-      }, 15000);
+        if (!settled) { settled = true; reject(new Error('Nie udało się połączyć z pokojem (limit czasu). Sprawdź kod pokoju, a jeśli jest poprawny — spróbuj innej sieci (np. przełącz się z WiFi na dane mobilne albo odwrotnie), bo część sieci blokuje bezpośrednie połączenia P2P.')); }
+      }, 20000);
 
       peer.on('open', function () {
         var conn = peer.connect(peerIdForRoom(roomCode), { reliable: true });
