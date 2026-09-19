@@ -2021,7 +2021,7 @@
         type: q.type === 'estimate' ? 'estimate' : 'normal',
         difficulty: q.difficulty || 'm',
         numericAnswer: q.numericAnswer,
-        used: false
+        used: !!q.used // preserve "Zarchiwizowane" from the imported file instead of resetting it
       };
     });
     if (mode === 'replace') this.items = clean;
