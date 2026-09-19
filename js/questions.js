@@ -1955,6 +1955,7 @@
   function QuestionBank() {
     this.items = load();
     this._listeners = [];
+    this._decks = {}; // draw() cache — see draw() below
   }
 
   QuestionBank.prototype.onChange = function (fn) { this._listeners.push(fn); };
@@ -1972,6 +1973,7 @@
     q = Object.assign({ id: WL.uid('q'), type: 'normal', difficulty: 'm', used: false }, q);
     this.items.push(q);
     save(this.items);
+    this._decks = {};
     this._fire();
     return q;
   };
@@ -1981,6 +1983,7 @@
     if (idx === -1) return null;
     this.items[idx] = Object.assign({}, this.items[idx], patch);
     save(this.items);
+    this._decks = {};
     this._fire();
     return this.items[idx];
   };
@@ -1988,17 +1991,20 @@
   QuestionBank.prototype.remove = function (id) {
     this.items = this.items.filter(function (q) { return q.id !== id; });
     save(this.items);
+    this._decks = {};
     this._fire();
   };
 
   QuestionBank.prototype.resetDefaults = function () {
     this.items = resetToDefaults();
+    this._decks = {};
     this._fire();
   };
 
   QuestionBank.prototype.clearAll = function () {
     this.items = [];
     save(this.items);
+    this._decks = {};
     this._fire();
   };
 
@@ -2021,6 +2027,7 @@
     if (mode === 'replace') this.items = clean;
     else this.items = this.items.concat(clean);
     save(this.items);
+    this._decks = {};
     this._fire();
     return clean.length;
   };
@@ -2029,26 +2036,96 @@
     return JSON.stringify(this.items, null, 2);
   };
 
-  // Pick a random not-yet-used question, optionally filtered by category /
-  // type. Falls back to the full pool once every question has been used, so
-  // a long game never simply runs dry. "Used" is a persisted flag on the
-  // question itself (shown in the editor as "Zarchiwizowane") rather than a
-  // session-only in-memory set, so it survives page reloads and the host
-  // can see at a glance what's already been asked.
+  // ------------------------------------------------------------------
+  // Drawing questions — two fairness guarantees stacked on top of each
+  // other, both "equal chance", but at different levels:
+  //
+  //   1. CATEGORY fairness. When no specific category is requested (the
+  //      normal "losowa kategoria" case), every category that still has
+  //      an eligible question gets an EQUAL chance of being asked next —
+  //      regardless of how many questions happen to be typed into it. A
+  //      flat draw straight from the whole bank would otherwise let big
+  //      categories (100+ questions) drown out small ones (a dozen
+  //      questions) almost completely, which is what "nie po równo"
+  //      actually looked like in practice.
+  //   2. QUESTION fairness within that pool (whichever category got
+  //      picked, or the whole matching pool if a category was requested
+  //      explicitly): a shuffled "deck" per (type, category, difficulty)
+  //      combo, dealt without replacement. Every question in the pool is
+  //      guaranteed to come up exactly once before any of them can repeat,
+  //      then the deck reshuffles for a fresh lap. This also has the nice
+  //      property that the *order* within a lap is a genuine unbiased
+  //      shuffle (Fisher–Yates), not just "uniform pick, but recomputed
+  //      from scratch every single draw".
+  //
+  // Drawn questions are still flagged `used` ("Zarchiwizowane" in the
+  // editor) exactly as before — a persisted flag on the question itself
+  // rather than a session-only set, so it survives reloads and the host
+  // can see at a glance what's already been asked, and "Przywróć pytania"
+  // still resets it for a new game.
+  // ------------------------------------------------------------------
+  QuestionBank.prototype._matchesDraw = function (q, opts) {
+    if (opts.type && q.type !== opts.type) return false;
+    if (!opts.type && q.type === 'estimate') return false; // don't draw estimate qs into normal rounds
+    if (opts.category && q.category !== opts.category) return false;
+    if (opts.difficulty && (q.difficulty || 'm') !== opts.difficulty) return false;
+    return true;
+  };
+
+  QuestionBank.prototype._buildDeck = function (opts) {
+    var self = this;
+    var pool = this.items.filter(function (q) { return self._matchesDraw(q, opts); });
+    var fresh = pool.filter(function (q) { return !q.used; });
+    var base = fresh.length > 0 ? fresh : pool; // whole pool already asked once → start a fresh lap
+    var ids = base.map(function (q) { return q.id; });
+    // Fisher–Yates: every ordering (and so every position) is equally likely.
+    for (var i = ids.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = ids[i]; ids[i] = ids[j]; ids[j] = t;
+    }
+    return ids;
+  };
+
   QuestionBank.prototype.draw = function (opts) {
     opts = opts || {};
-    var pool = this.items.filter(function (q) {
-      if (opts.type && q.type !== opts.type) return false;
-      if (!opts.type && q.type === 'estimate') return false; // don't draw estimate qs into normal rounds
-      if (opts.category && q.category !== opts.category) return false;
-      if (opts.difficulty && (q.difficulty || 'm') !== opts.difficulty) return false;
-      if (opts.excludeIds && opts.excludeIds.indexOf(q.id) !== -1) return false;
-      return true;
-    });
-    if (pool.length === 0) return null;
-    var fresh = pool.filter(function (q) { return !q.used; });
-    var chosenFrom = fresh.length > 0 ? fresh : pool;
-    var q = chosenFrom[Math.floor(Math.random() * chosenFrom.length)];
+    var self = this;
+
+    if (opts.excludeIds && opts.excludeIds.length) {
+      // Exact-id exclusion doesn't fit a persistent shuffled deck, so this
+      // one case falls back to a plain filtered random pick instead.
+      var pool = this.items.filter(function (q) {
+        return self._matchesDraw(q, opts) && opts.excludeIds.indexOf(q.id) === -1;
+      });
+      if (pool.length === 0) return null;
+      var picked = pool[Math.floor(Math.random() * pool.length)];
+      this.markUsed(picked.id);
+      return picked;
+    }
+
+    if (!opts.category) {
+      var cats = this.categories().filter(function (cat) {
+        return self.items.some(function (q) { return q.category === cat && self._matchesDraw(q, opts); });
+      });
+      if (cats.length > 1) {
+        var pickCat = cats[Math.floor(Math.random() * cats.length)];
+        var withCat = Object.assign({}, opts, { category: pickCat });
+        return this.draw(withCat);
+      }
+      // 0 categories match (nothing eligible at all) or exactly 1 does —
+      // either way there's no "which category" choice to make, so just
+      // fall through to a normal pool-wide deck draw below.
+    }
+
+    this._decks = this._decks || {};
+    var key = (opts.type || 'normal') + '|' + (opts.category || '*') + '|' + (opts.difficulty || '*');
+    if (!this._decks[key] || this._decks[key].length === 0) {
+      this._decks[key] = this._buildDeck(opts);
+    }
+    var deck = this._decks[key];
+    if (deck.length === 0) return null; // nothing matches these filters at all
+    var id = deck.pop();
+    var q = this.items.find(function (x) { return x.id === id; });
+    if (!q) return this.draw(opts); // id no longer exists (deleted mid-game) — draw again
     this.markUsed(q.id);
     return q;
   };
@@ -2063,12 +2140,14 @@
   QuestionBank.prototype.resetUsed = function () {
     this.items.forEach(function (q) { q.used = false; });
     save(this.items);
+    this._decks = {};
     this._fire();
   };
 
   QuestionBank.prototype.toggleUsed = function (id) {
     var q = this.items.find(function (x) { return x.id === id; });
     if (!q) return;
+    this._decks = {};
     q.used = !q.used;
     save(this.items);
     this._fire();
