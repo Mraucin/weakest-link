@@ -363,10 +363,24 @@
     });
   }
 
+  // The host shuffles a fixed "seatOrder" once per game and turns advance
+  // around that same order (see nextPlayerAfter in host.js). The circle
+  // MUST be laid out in that order too — not raw join order — otherwise
+  // whoever is "up" jumps to a random spot each turn instead of sweeping
+  // one seat clockwise, which looks broken even though nothing is wrong.
+  function orderBySeat(players, seatOrder) {
+    if (!seatOrder || !seatOrder.length) return players;
+    var byId = {};
+    players.forEach(function (p) { byId[p.id] = p; });
+    var ordered = seatOrder.map(function (id) { return byId[id]; }).filter(Boolean);
+    players.forEach(function (p) { if (ordered.indexOf(p) === -1) ordered.push(p); });
+    return ordered;
+  }
+
   // Rotate the seating order so that "me" always lands in the same anchor
   // spot (top of the circle / first in the voting row) — every player sees
   // themselves in the same place, with everyone else arranged around them
-  // in their normal relative order.
+  // in their normal relative (seat) order.
   function rotateForMe(players) {
     if (!myPlayerId) return players;
     var idx = players.findIndex(function (p) { return p.id === myPlayerId; });
@@ -407,7 +421,7 @@
     $('#roomCodeBadge').textContent = st.roomCode || '';
     $('#phaseBadge').textContent = phaseLabel(st.phase);
 
-    var players = st.players.slice();
+    var players = orderBySeat(st.players.slice(), st.seatOrder);
     ensureAvatarEls(players);
     updateAvatarClasses(players, st);
 
