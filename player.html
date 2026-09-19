@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/>
+<title>Gracz — Najsłabsze Ogniwo</title>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body class="player-body">
+
+  <section id="screen-join" class="screen active">
+    <div class="join-wrap">
+      <div class="landing-logo small">🔗 NAJSŁABSZE OGNIWO</div>
+      <form id="joinForm" class="join-form">
+        <div class="avatar-picker">
+          <div id="avatarPreview" class="avatar-preview"></div>
+          <button type="button" id="rerollAvatarBtn" class="btn small ghost">🎲 Losuj avatar</button>
+        </div>
+        <label>Kod pokoju
+          <input id="roomCodeInput" type="text" maxlength="8" placeholder="np. AB12C" autocapitalize="characters" autocomplete="off"/>
+        </label>
+        <label>Twój pseudonim
+          <input id="nicknameInput" type="text" maxlength="18" placeholder="np. Kasia" autocomplete="off"/>
+        </label>
+        <div id="joinError" class="error-text" style="display:none"></div>
+        <button id="joinBtn" type="submit" class="btn big good">Dołącz do gry</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="screen-game" class="screen">
+    <div id="gameError" class="error-banner" style="display:none"></div>
+    <div class="top-bar">
+      <span id="roomCodeBadge" class="room-code-badge"></span>
+      <span id="timerDisplay" class="timer-display"></span>
+      <span id="phaseBadge" class="phase-badge"></span>
+    </div>
+    <div id="categoryDisplay" class="category-display"></div>
+
+    <div class="board">
+      <div id="ladderRound" class="ladder-slot"></div>
+
+      <div id="centerPanel" class="center-panel">
+        <div id="arena" class="arena"></div>
+
+        <div id="bankBtnWrap" class="bank-btn-wrap">
+          <button id="bankBtn" class="bank-btn" disabled>BANK!</button>
+          <div id="bankHint" class="bank-hint"></div>
+        </div>
+
+        <div id="canvasWrap" class="canvas-wrap" style="display:none">
+          <canvas id="drawCanvas"></canvas>
+          <div class="canvas-toolbar">
+            <button type="button" class="pen-color active" data-color="#1b1b1b" style="background:#1b1b1b"></button>
+            <button type="button" class="pen-color" data-color="#e74c3c" style="background:#e74c3c"></button>
+            <button type="button" class="pen-color" data-color="#2980b9" style="background:#2980b9"></button>
+            <button type="button" class="pen-color" data-color="#ffffff" style="background:#fff;border:2px solid #999" title="Gumka"></button>
+            <button type="button" id="clearCanvasBtn" class="btn tiny ghost">Wyczyść</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="ladderTotal" class="ladder-slot"></div>
+    </div>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/network.js"></script>
+  <script src="js/player.js"></script>
+</body>
+</html>

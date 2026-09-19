@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<title>Panel Hosta — Najsłabsze Ogniwo</title>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body class="host-body">
+
+  <div id="resumeBanner" class="resume-banner" style="display:none">
+    <span id="resumeText"></span>
+    <button id="resumeYes" class="btn small">Wznów</button>
+    <button id="resumeNo" class="btn small ghost">Nowa gra</button>
+  </div>
+
+  <header class="admin-header">
+    <a href="index.html" class="brand">🔗 Najsłabsze Ogniwo — Host</a>
+    <div id="roomPill" class="room-pill">Pokój: ----</div>
+    <nav class="admin-tabs">
+      <button class="tab-btn active" data-tab="lobby">Lobby</button>
+      <button class="tab-btn" data-tab="game">Gra</button>
+      <button class="tab-btn" data-tab="questions">Edytor pytań</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-lobby" class="tab-panel active">
+      <div class="lobby-grid">
+        <div class="lobby-box">
+          <h2>1. Utwórz pokój</h2>
+          <button id="createRoomBtn" class="btn big">Utwórz pokój</button>
+          <p class="hint">Podaj graczom kod pokoju lub link poniżej — otworzą go w przeglądarce na telefonie/komputerze.</p>
+          <a id="joinLink" href="#" target="_blank" style="display:none;word-break:break-all"></a>
+        </div>
+        <div class="lobby-box">
+          <h2>2. Gracze (<span id="lobbyCount">0 / 10</span>)</h2>
+          <div id="lobbyPlayerList" class="lobby-player-list">
+            <div class="empty-hint">Nikt jeszcze nie dołączył. Podaj graczom kod pokoju.</div>
+          </div>
+        </div>
+        <div class="lobby-box">
+          <h2>3. Rozpocznij</h2>
+          <p class="hint">Minimum 2 graczy. Runda 1 trwa 2:30, każda kolejna jest o 10s krótsza.</p>
+          <button id="startGameBtn" class="btn big good" disabled>▶ Rozpocznij grę</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-game" class="tab-panel">
+      <div id="gameStage" class="game-stage">
+        <div class="stage-empty">Utwórz pokój i rozpocznij grę w zakładce Lobby.</div>
+      </div>
+    </section>
+
+    <section id="tab-questions" class="tab-panel">
+      <div id="questionsEditorMount" class="questions-editor"></div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/questions.js"></script>
+  <script src="js/network.js"></script>
+  <script src="js/host.js"></script>
+</body>
+</html>
