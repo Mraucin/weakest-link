@@ -2105,7 +2105,18 @@
     }
 
     if (!opts.category) {
-      var cats = this.categories().filter(function (cat) {
+      var allCats = this.categories();
+      // Prefer categories that still have a FRESH (never-asked) matching
+      // question — not just any matching question. Otherwise a category
+      // whose pool is already exhausted gets picked exactly as often as one
+      // that's untouched, and then hands out an already-archived question
+      // from it even while every other category still has plenty of fresh
+      // ones left. Recycling is only acceptable once nothing anywhere is
+      // fresh any more.
+      var freshCats = allCats.filter(function (cat) {
+        return self.items.some(function (q) { return q.category === cat && self._matchesDraw(q, opts) && !q.used; });
+      });
+      var cats = freshCats.length > 0 ? freshCats : allCats.filter(function (cat) {
         return self.items.some(function (q) { return q.category === cat && self._matchesDraw(q, opts); });
       });
       if (cats.length > 1) {
